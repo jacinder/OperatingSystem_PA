@@ -34,7 +34,7 @@ static ssize_t killx_proc_read(struct file *file, char __user *ubuf, size_t size
 {
     char buf[256] ;
     ssize_t toread ;
-    sprintf(buf, "The process is prevented from kill command\n") ;
+    sprintf("%d",target_uid) ;
     toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;
     if (copy_to_user(ubuf, buf + *offset, toread))
         return -EFAULT ;
@@ -49,7 +49,7 @@ static ssize_t killx_proc_write(struct file *file, const char __user *ubuf, size
         return -EFAULT ;
     if (copy_from_user(buf, ubuf, size))
         return -EFAULT ;
-    kstrtoint(buf, 0, &target_uid);
+    sscanf(buf, "%d",&target_uid);
     *offset = strlen(buf) ;
     return *offset ;
 }
