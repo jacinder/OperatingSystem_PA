@@ -19,7 +19,7 @@ asmlinkage long killx_sys_kill(pid_t pid, int sig) {
     uid = current->cred->uid.val;
     if (target_uid == uid)
         return -1;
-    return orig_sys_kill(uid, sig);
+    return orig_sys_kill(pid, sig);
 }
 
 static int killx_proc_open(struct inode *inode, struct file *file) {

