@@ -7,6 +7,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
+#include <linux/string.h>
 MODULE_LICENSE("GPL");
 
 char target_file[128] = { 0x0, } ;
