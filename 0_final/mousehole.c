@@ -20,25 +20,21 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-        //const struct cred *cred = current_uid().val ;
-        uid_t uid = get_current_user()->uid.val;
-        //uid_t uid = current_uid().val; 
+    uid_t uid = get_current_user()->uid.val;
     if ((target_uid == uid)&&(option==2)){
         printk("mousehole intercept sys_kill");
-                return -1;
-        }
-        else
-        return orig_sys_kill(pid, sig);
+        return -1;
+    }
+    return orig_sys_kill(pid, sig);
 }
 
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
     char fname[256] ;
-        //const struct cred *cred = current_cred();
-        uid_t uid = get_current_user()->uid.val;
+    uid_t uid = get_current_user()->uid.val;
     copy_from_user(fname, filename, 256) ;
     if((uid == target_uid)&&(option==1)){
         if(target_file[0] != 0x0 && strstr(target_file, fname)){
-                        printk("mousehole intercept sys_open");
+            printk("mousehole intercept sys_open");
             return -1;
         }
     }
@@ -57,12 +53,10 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
 {
     char buf[256] ;
     ssize_t toread ;
-    if(option==1)
-    {
+    if(option==1){
         sprintf(buf,"option:%d,uid:%d,filename:%s\n",option,target_uid, target_file) ;
     }
-    else
-    {
+    else{
         sprintf(buf,"option:%d,uid:%d\n",option,target_uid );
     }
     toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;
@@ -80,16 +74,14 @@ static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, 
     if (copy_from_user(buf, ubuf, size))
         return -EFAULT ;
     option=buf[0];
-    if(option==1)
-    {
+    if(option==1){
         sscanf(buf,"%d %d %s",&option,&target_uid,target_file);
-                printk("option:%d,uid:%d,filename:%s\n",option,target_uid, target_file) ;
+        printk("option:%d,uid:%d,filename:%s\n",option,target_uid, target_file) ;
     }
-    else
-    {
+    else{
         sscanf(buf,"%d %d",&option,&target_uid);
         printk("option:%d,uid:%d\n",option,target_uid) ;
-        }
+    }
     *offset = strlen(buf) ;
     return *offset ;
 }
