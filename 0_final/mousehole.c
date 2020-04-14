@@ -25,16 +25,15 @@ asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
     return orig_sys_kill(uid, sig);
 }
 
-asmlinkage int openx_sys_open(const char __user * filename, int flags, umode_t mode){
+asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
         uid_t uid = current->cred->uid.val;
         if(uid == target_uid){
-			if(!strstr(filename, target_file)){
-				return -1;
-			}
+                        if(!strstr(filename, target_file)){
+                                return -1;
+                        }
         }
         return orig_sys_open(filename, flags, mode) ;
 }
-
 static int mousehole_proc_open(struct inode *inode, struct file *file) {
     return 0 ;
 }
@@ -50,11 +49,11 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     ssize_t toread ;
     if(option==1)
     {
-        sprintf("uid:%d,filename:%s \n", target_uid, target_file) ;
+        sprintf(buf,"uid:%d,filename:%s \n",target_uid, target_file) ;
     }
     else
     {
-        sprintf("uid:%d",target_uid);
+        sprintf(buf,"uid:%d\n",target_uid );
     }
     toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;
     if (copy_to_user(ubuf, buf + *offset, toread))
@@ -62,7 +61,6 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     *offset = *offset + toread ;
     return toread ;
 }
-
 //This function is called with the /proc file is written
 static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) 
 {
@@ -74,12 +72,13 @@ static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, 
     option=buf[0];
     if(option==1)
     {
-        sscanf(buf,"%d %d%s",&option,&target_uid,target_file);
+        sscanf(buf,"%d %d %s",&option,&target_uid,target_file);
     }
     else
     {
         sscanf(buf, "%d %d",&option,&target_uid);
     }
+
     
     *offset = strlen(buf) ;
     return *offset ;
@@ -93,7 +92,6 @@ static const struct file_operations mousehole_fops = {
     .llseek =   seq_lseek,
     .release =  mousehole_proc_release,
 } ;
-
 static int __init mousehole_init(void) {
     unsigned int level ; 
     pte_t * pte ;
@@ -107,8 +105,10 @@ static int __init mousehole_init(void) {
     if (pte->pte &~ _PAGE_RW) 
         pte->pte |= _PAGE_RW ;
 
-    sctable[__NR_kill] = mousehole_sys_kill;
-    sctable[__NR_open] = mousehole_sys_open ;
+        if(option ==1)
+        sctable[__NR_open] = mousehole_sys_open ;
+        if(option ==2)
+        sctable[__NR_kill] = mousehole_sys_kill;
     return 0;
 }
 
