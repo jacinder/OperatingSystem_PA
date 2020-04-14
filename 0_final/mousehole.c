@@ -5,7 +5,6 @@
 #include <linux/uaccess.h>
 #include <linux/kallsyms.h>
 #include <linux/init.h>
-#include <linux/cred.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
 #include <linux/string.h>
@@ -22,7 +21,7 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode); 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-    uid_t uid = current->cred->uid.val;
+    uid_t uid = get_current_user()->uid.val;
     if ((target_uid == uid)&&(option==2)){
         printk("mousehole intercept sys_kill");
         mousehole_kill_cnt++;
