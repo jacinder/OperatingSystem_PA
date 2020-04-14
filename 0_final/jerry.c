@@ -30,52 +30,46 @@ int main(){
 void block_open_file(FILE* fp){
     char fname[64];
     char uname[64];
-    char buffer[256];
-        struct passwd*  user_pw;
-        int target_uid;
+    //char buffer[256];
+    struct passwd*  user_pw;
+    //int target_uid;
 
     printf("Enter a file name : ");
     scanf("%s",fname);
     printf("Entr a user name : ");
     scanf("%s",uname);
 
-        user_pw = getpwnam(uname);
-        target_uid = (int)(user_pw->pw_uid);
-        printf("target uid : %d\n",target_uid);
-    
-        sscanf(buffer,"1 %d %s",&target_uid,fname);
-    fputs(buffer, fp);
+    user_pw = getpwnam(uname);
+    //target_uid = (int)(user_pw->pw_uid);
+    fprintf(fp, "1 %d %s", user_pw->pw_uid,fname);
 }
 void prevent_process_kill(FILE* fp){
     char uname[64];
-    char buffer[256];
-        struct passwd* user_pw;
-        int target_uid;
+    //char buffer[256];
+    struct passwd* user_pw;
+    //int target_uid;
 
     printf("Enter a user name : ");
     scanf("%s",uname);
 
-        user_pw = getpwnam(uname);
-        target_uid = (int)(user_pw->pw_uid);
-        printf("target uid : %d\n",target_uid);
-    
-        sscanf(buffer,"2 %d",&target_uid);
-    fputs(buffer, fp);
+    user_pw = getpwnam(uname);
+    //target_uid = (int)(user_pw->pw_uid);
+    fprintf(fp, "2 %d", user_pw->pw_uid);
 }
 
 int release_module(){
-        char buffer[128];
-        FILE* fp = fopen("/proc/modules","r");
-        if(fp==NULL){
-                printf("Failed to open /proc/modules\n");
-                return -1;
+    char buffer[128];
+    FILE* fp = fopen("/proc/modules","r");
+    if(fp==NULL){
+        printf("Failed to open /proc/modules\n");
+        return -1;
+    }
+    while(fgets(buffer, sizeof(buffer), fp)){
+        if(strstr(buffer,"mousehole")){
+            return 1;
         }
-        while(fgets(buffer, sizeof(buffer), fp)){
-                if(strstr(buffer,"mousehole")){
-                        return 1;
-                }
-        }
-        fclose(fp);
-        return 0;
-        printf("No mousehole module running");
+    }
+    fclose(fp);
+    return 0;
+    printf("No mousehole module running");
 }
