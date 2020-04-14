@@ -8,23 +8,22 @@ int release_module();
 int main(){
         int input=0;
         printf("Which fucntion do you want to use?\n");
-        printf("0. Terminate this program\n");
         printf("1. block a certain user from opening a specified files\n");
         printf("2. prevent a killing of processes created by a specific user\n");
         scanf("%d",&input);
-                int release = release_module();
-                if (release == 1)
-                        system("sudo rmmod mousehole");
+            int release = release_module();
+            if (release == 1)
+                system("sudo rmmod mousehole");
 
         system("sudo insmod mousehole.ko");
-                printf("Start mousehole module\n");
+        printf("Start mousehole module\n");
         FILE *fp = fopen("/proc/mousehole", "w");
         if (fp == NULL) {
             printf("Failed to open /proc/mousehole\n");
             return -1;
         }
         input == 1? block_open_file(fp):prevent_process_kill(fp);
-                fclose(fp);
+        fclose(fp);
         return 0;
 }
 void block_open_file(FILE* fp){
