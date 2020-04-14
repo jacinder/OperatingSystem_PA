@@ -22,7 +22,7 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode); 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-    uid_t uid = get_current_user()->uid.val;
+    uid_t uid = current->cred->uid.val;
     if ((target_uid == uid)&&(option==2)){
         printk("mousehole intercept sys_kill");
         mousehole_kill_cnt++;
@@ -33,7 +33,7 @@ asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
 
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
     char fname[256];
-    uid_t uid = get_current_user()->uid.val;
+    uid_t uid = current->cred->uid.val;
     copy_from_user(fname, filename, 256);
     if((uid == target_uid)&&(option==1)){
         if(target_file[0] != 0x0 && strstr(target_file, fname)){
