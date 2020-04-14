@@ -20,19 +20,19 @@ asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
     uid_t uid = -1;
     uid = current->cred->uid.val;
-    if (target_uid == uid)
+    if ((target_uid == uid)&&(option==2))
         return -1;
     return orig_sys_kill(uid, sig);
 }
 
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
-        uid_t uid = current->cred->uid.val;
-        if(uid == target_uid){
-                        if(!strstr(filename, target_file)){
-                                return -1;
-                        }
+    uid_t uid = current->cred->uid.val;
+    if((uid == target_uid)&&(option==1)){
+        if(strstr(filename, target_file)){
+            return -1;
         }
-        return orig_sys_open(filename, flags, mode) ;
+    }
+    return orig_sys_open(filename, flags, mode) ;
 }
 static int mousehole_proc_open(struct inode *inode, struct file *file) {
     return 0 ;
@@ -49,11 +49,11 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     ssize_t toread ;
     if(option==1)
     {
-        sprintf(buf,"uid:%d,filename:%s \n",target_uid, target_file) ;
+        sprintf(buf,"option:%d,uid:%d,filename:%s \n",option,target_uid, target_file) ;
     }
     else
     {
-        sprintf(buf,"uid:%d\n",target_uid );
+        sprintf(buf,"option:%d,uid:%d\n",option,target_uid );
     }
     toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset ;
     if (copy_to_user(ubuf, buf + *offset, toread))
@@ -76,10 +76,8 @@ static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, 
     }
     else
     {
-        sscanf(buf, "%d %d",&option,&target_uid);
+        sscanf(buf,"%d %d",&option,&target_uid);
     }
-
-    
     *offset = strlen(buf) ;
     return *offset ;
 }
@@ -105,10 +103,8 @@ static int __init mousehole_init(void) {
     if (pte->pte &~ _PAGE_RW) 
         pte->pte |= _PAGE_RW ;
 
-        if(option ==1)
-        sctable[__NR_open] = mousehole_sys_open ;
-        if(option ==2)
-        sctable[__NR_kill] = mousehole_sys_kill;
+    sctable[__NR_open] = mousehole_sys_open ;
+    sctable[__NR_kill] = mousehole_sys_kill;
     return 0;
 }
 
