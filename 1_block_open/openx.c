@@ -22,9 +22,9 @@ asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t
 asmlinkage int openx_sys_open(const char __user * filename, int flags, umode_t mode){
         uid_t uid = current->cred->uid.val;
         if(uid == target_uid){
-                if(!strcmp(filename, target_file)){
-                        return -1;
-                }
+			if(!strstr(filename, target_file)){
+				return -1;
+			}
         }
         return orig_sys_open(filename, flags, mode) ;
 }
@@ -36,6 +36,7 @@ static int openx_proc_open(struct inode *inode, struct file *file) {
 static int openx_proc_release(struct inode *inode, struct file *file) {
         return 0 ;
 }
+
 static ssize_t openx_proc_read(struct file *file, char __user *ubuf, size_t size, loff_t *offset) 
 {
         char buf[256] ;
