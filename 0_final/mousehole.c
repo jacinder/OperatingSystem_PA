@@ -5,6 +5,7 @@
 #include <linux/uaccess.h>
 #include <linux/kallsyms.h>
 #include <linux/init.h>
+#include <linux/cred.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
 #include <linux/string.h>
@@ -19,18 +20,25 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode) ; 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-    uid_t uid = get_current_user()->uid.val;
-    if ((target_uid == uid)&&(option==2))
-        return -1;
-    return orig_sys_kill(pid, sig);
+        //const struct cred *cred = current_uid().val ;
+        uid_t uid = get_current_user()->uid.val;
+        //uid_t uid = current_uid().val; 
+    if ((target_uid == uid)&&(option==2)){
+        printk("mousehole intercept sys_kill");
+                return -1;
+        }
+        else
+        return orig_sys_kill(pid, sig);
 }
 
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
     char fname[256] ;
-    uid_t uid = get_current_user()->uid.val;
+        //const struct cred *cred = current_cred();
+        uid_t uid = get_current_user()->uid.val;
     copy_from_user(fname, filename, 256) ;
     if((uid == target_uid)&&(option==1)){
-        if(target_file[0] != 0x0 && strcmp(target_file, fname) == 0){
+        if(target_file[0] != 0x0 && strstr(target_file, fname)){
+                        printk("mousehole intercept sys_open");
             return -1;
         }
     }
@@ -51,7 +59,7 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     ssize_t toread ;
     if(option==1)
     {
-        sprintf(buf,"option:%d,uid:%d,filename:%s \n",option,target_uid, target_file) ;
+        sprintf(buf,"option:%d,uid:%d,filename:%s\n",option,target_uid, target_file) ;
     }
     else
     {
@@ -75,15 +83,16 @@ static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, 
     if(option==1)
     {
         sscanf(buf,"%d %d %s",&option,&target_uid,target_file);
+                printk("option:%d,uid:%d,filename:%s\n",option,target_uid, target_file) ;
     }
     else
     {
         sscanf(buf,"%d %d",&option,&target_uid);
-    }
+        printk("option:%d,uid:%d\n",option,target_uid) ;
+        }
     *offset = strlen(buf) ;
     return *offset ;
 }
-
 static const struct file_operations mousehole_fops = {
     .owner =    THIS_MODULE,
     .open =     mousehole_proc_open,
