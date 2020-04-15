@@ -63,6 +63,7 @@ void block_open_file(FILE* fp){
     user_pw = getpwnam(uname);
         if(user_pw == NULL){
             printf("Wrong name\n");
+            system("sudo rmmod mousehole");
             return ;
         }
     fprintf(fp, "1 %d %s", user_pw->pw_uid,fname);
@@ -77,6 +78,7 @@ void prevent_process_kill(FILE* fp){
     user_pw = getpwnam(uname);
         if(user_pw == NULL){
             printf("Wrong name\n");
+            system("sudo rmmod mousehole");
             return ;
         }
     fprintf(fp, "2 %d", user_pw->pw_uid);
