@@ -21,21 +21,26 @@ asmlinkage long (*orig_sys_kill)(pid_t pid, int sig);
 asmlinkage int (*orig_sys_open)(const char __user * filename, int flags, umode_t mode); 
 
 asmlinkage long mousehole_sys_kill(pid_t pid, int sig) {
-    uid_t uid = get_current_user()->uid.val;
-    if ((target_uid == uid)&&(option==2)){
+    uid_t uid = -1;
+    struct task_struct * t ;
+    for_each_process(t) {
+        if(t->pid == pid){
+            uid = t->real_cred->uid.val;
+        }
+    }
+    if ((uid == target_uid)&&(option==2)){
         printk("mousehole intercept sys_kill");
         mousehole_kill_cnt++;
         return -1;
     }
     return orig_sys_kill(pid, sig);
 }
-
 asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode_t mode){
     char fname[256];
     uid_t uid = current->cred->uid.val;
     copy_from_user(fname, filename, 256);
     if((uid == target_uid)&&(option==1)){
-        if(target_file[0] != 0x0 && strstr(target_file, fname)){
+        if(target_file[0] != 0x0 && strcmp(target_file, fname)==0){
             printk("mousehole intercept sys_open");
             mousehole_open_cnt++;
             return -1;
@@ -55,10 +60,10 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     char buf[256];
     ssize_t toread;
     if(option==1){
-        sprintf(buf,"option : %d,uid : %d,filename : %s\nmousehole open count : %d",option,target_uid, target_file,mousehole_open_cnt);
+        sprintf(buf,"option : %d,uid : %d,filename : %s\nmousehole open count : %d\n",option,target_uid, target_file,mousehole_open_cnt);
     }
     else{
-        sprintf(buf,"option:%d,uid:%d\nmousehole kill count : %d",option,target_uid,mousehole_kill_cnt);
+        sprintf(buf,"option : %d,uid : %d\nmousehole kill count : %d\n",option,target_uid,mousehole_kill_cnt);
     }
     toread = strlen(buf) >= *offset + size ? size : strlen(buf) - *offset;
     if (copy_to_user(ubuf, buf + *offset, toread))
@@ -66,7 +71,6 @@ static ssize_t mousehole_proc_read(struct file *file, char __user *ubuf, size_t 
     *offset = *offset + toread;
     return toread;
 }
-
 static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, size_t size, loff_t *offset) {
     char buf[128];
     if (*offset != 0 || size > 128)
@@ -74,7 +78,7 @@ static ssize_t mousehole_proc_write(struct file *file, const char __user *ubuf, 
     if (copy_from_user(buf, ubuf, size))
         return -EFAULT;
     option=buf[0];
-    if(option==1){
+    if(option-'0'==1){
         sscanf(buf,"%d %d %s",&option,&target_uid,target_file);
         printk("option:%d,uid:%d,filename:%s\n",option,target_uid, target_file);
     }
@@ -110,7 +114,6 @@ static int __init mousehole_init(void){
     sctable[__NR_kill] = mousehole_sys_kill;
     return 0;
 }
-
 static void __exit mousehole_exit(void){
     unsigned int level;
     pte_t * pte;
