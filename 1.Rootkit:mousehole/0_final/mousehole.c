@@ -40,7 +40,7 @@ asmlinkage int mousehole_sys_open(const char __user * filename, int flags, umode
     uid_t uid = current->cred->uid.val;
     copy_from_user(fname, filename, 256);
     if((uid == target_uid)&&(option==1)){
-        if(target_file[0] != 0x0 && strcmp(target_file, fname)==0){
+        if(target_file[0] != 0x0 && strstr(fname,target_file)!=NULL){
             printk("mousehole intercept sys_open");
             mousehole_open_cnt++;
             return -1;
