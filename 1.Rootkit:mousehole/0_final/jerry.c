@@ -12,8 +12,8 @@ int main(){
     int option = -1;
     printf("Which fucntion do you want to use?\n");
     printf("0. Terminate mousehole module\n");
-    printf("1. Block a certain user from opening a specified files\n");
-    printf("2. Prevent a killing of processes created by a specific user\n");
+    printf("1. Block file opening of user\n");
+    printf("2. prevent killing of process\n");
     printf("3. Check current mousehole module info\n");
     scanf("%d",&option);
     if(!(option == 1 || option == 2 || option == 3 || option == 0)){
