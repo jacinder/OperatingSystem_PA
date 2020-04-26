@@ -18,17 +18,16 @@ permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
 #define callimit 2
 
 typedef struct {
-    // int N;
-    // int dist[N][N];
-    int prefix[N-callimit];
-    int prefixLen;
-    int path[N];
+    int child_path[N];
 } Buffer;
 
 int pipes[2]; //result 전달을 위한 파이프
 int dist[N][N]; //도시간의 거리 저장하는 매트릭스
-int ANS = INFINITY;
+float ANS = INFINITY;
 int** prefix;
+int** path;
+int* best_path;
+int* prefixCase;
 int count = 0;
 
 void handler(int sig);
@@ -37,22 +36,20 @@ void print_arr(int size, int* arr);
 void permutation(int n, int r, int depth,int* arr);
 int find_pid(int* total_pid, int limit);
 
-void child_proc(int shm_id){
+void child_proc(int shm_id,int prefixNum, int prefixLen){
     sleep(1); // wait for the parent to initialize the shared buffer
     close(pipes[0]);
     Buffer *buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ,MAP_SHARED,shm_id,0);
 
-    //get info from shared memory
-    int prefix[N-callimit];
-    for(int i=0;i<N-callimit;i++){
-        prefix[i] = buffer->prefix[i];
+    int child_prefix[prefixLen];
+    for(int i=0;i<prefixLen;i++){
+        child_prefix[i] = prefix[prefixNum][i];
     }
-    int prefixLen = buffer->prefixLen;
 
     float ans = INFINITY;
     int visited = 0;
     int used[N] = {0};
-    int path[N] = { [0 ... N-1] = -1 };
+    int child_path[N] = { [0 ... N-1] = -1 };
     int last = prefix[prefixLen-1];
     int start = prefix[0];
     int tmp_dist = 0;
@@ -75,9 +72,9 @@ void child_proc(int shm_id){
             for(int left=0;left<N;left++){
                 if(used[left]==0){ //loop for left cities
                     used[left]=1;
-                    path[visited]=left;
+                    child_path[visited]=left;
                     visited++;
-                    find_path(start,left,path,tmp_dist+dist[last][left])
+                    find_path(start,left,child_path,tmp_dist+dist[last][left]);
                 }
             }
         }
@@ -90,7 +87,7 @@ void child_proc(int shm_id){
     //initialize array for find_path
     for(int i=0;i<prefixLen-1;i++){
         used[prefix[i]]=1;
-        path[i]=prefix[i];
+        child_path[i]=prefix[i];
     }
 
     find_path();
@@ -99,15 +96,20 @@ void child_proc(int shm_id){
     sprintf(buf,"%f",ans);
     write(pipes[1], buf, 31);
 
+    //send this path using shm
     for(int i=0;i<N;i++){
-        buffer->path[i] = path[i];
+        buffer->path[i] = child_path[i];
+    }
+
+    for(int i=0;i<N;i++){
+        path[prefixNum][i] = child_path[i];
     }
 
     munmap(buffer,sizeof(Buffer));
     exit(0);
 }
 
-void parent_proc(int shm_id, int** path, char name[],int prefixNum, int* total_pid, int curr){
+void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr){
     int exit_code;
     close(pipes[1]);
     Buffer* buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ | PROT_WRITE,MAP_SHARED,shm_id,0);
@@ -123,13 +125,15 @@ void parent_proc(int shm_id, int** path, char name[],int prefixNum, int* total_p
     //get info from child
     char buf[32];
     read(pipes[0], buf, 31);
-    int ans = atoi(buf);
-    if(ans < ANS) ANS = ans;
+    int ans = stof(buf);
+    if(ans < ANS){
+        ANS = ans;
+        for(int i=0;i<N;i++){
+            best_path[i] = buffer->path[i];
+        }
+    }
     close(pipes[0]);
 
-    for(int i=0;i<N;i++){
-        path[prefixNum][i] = buffer->path[i];
-    }  
     shm_unlink(name);
 
     total_pid[curr] = 0;
@@ -143,12 +147,12 @@ int main(int argc, char argv[]){
     }
     char filename[32];
     char str[128];
-    int limit = atoi(argv[2]);
+    int limit = stoi(argv[2]);
     pid_t child_pid[limit];
     
 
     strcpy(filename,argv[1]);
-    signal(SIGINT, handler);
+    signal(SIGINT, handler;
 
     FILE * fp = fopen(filename, "r");
     if(fp == NULL){
@@ -167,23 +171,31 @@ int main(int argc, char argv[]){
     fclose(fp);
 
     int prefixLen = N - callimit;
-    int prefixCase = 1;
+    int _prefixCase = 1;
 
     //calculate nPr to get to know number of all kind of prefix.
-    for(int i=0;i<r;i++){ 
-        prefixCase *= n;
+    int n = N;
+    for(int i=0;i<prefixLen;i++){ 
+        _prefixCase *= n;
         n--;
     }
-    int prefixNum = prefixCase;
+    int prefixNum = _prefixCase;
+    prefixCase = (int*)malloc(sizeof(int));
+    prefixCase = _prefixCase;
     prefix = (int**)malloc(sizeof(int*)*prefixCase);
     for(int i=0;i<prefixCase;i++){
         prefix[i]=(int*)malloc(sizeof(int)*prefixLen);
     }
-    int path[prefixCase][N];
+    path=(int**)malloc(sizeof(int*)*prefixCase);
+    for(int i=0;i<prefixCase;i++){
+        path[i]=(int*)malloc(sizeof(int)*N);
+    }
+    best_path = (int*)malloc(sizeof(int)*N);
 
     int curr_pid = 0;
     int running_pid = 0;
-    int total_pid[limit] = {0};
+    int total_pid[limit];
+    for(int i=0;i<limit;i++) total_pid=0;
     char buf[256];
     
     //making prefix
@@ -220,7 +232,7 @@ int main(int argc, char argv[]){
                 printf("Failed to create child process\n");
                 exit(-1);
             } else if(child_pid > 0){
-                parent_proc(shm_id, path, name, prefixNum, total_pid, curr_pid);
+                parent_proc(shm_id, name, prefixNum, total_pid, curr_pid);
             } else {
                 child_proc(shm_id);
             }
@@ -233,12 +245,18 @@ void handler (int sig){
     if (sig == SIGINT) {
         //best solution upto the point
         printf("best solution :\n");
-        for (i=0;i<N;i++) {
-            printf("%d ",path[i]);
-        }
-        printf("\nlength = %d\n",ans);
+
+
         //total number of checked/covered routes upto the point
-        //패쓰들을 다 저장해야 하는건가???
+        printf("checked routes :\n");
+        for(int i=0;i<prefixCase;i++){
+            for (int j=0;j<N;j++) {
+                if(path[i][j]!=-1);
+                printf("%d ",path[i][j]);
+            }
+        }
+        
+        printf("\nlength = %d\n",ANS);
         exit(0);
     }
 }
