@@ -58,7 +58,10 @@ int main(int argc, char* argv[]){
     int prefixNum = prefixCase;
     int curr_pid = 0;
     int running_pid = 0;
-    int total_pid[limit]={0};
+    int total_pid[limit];
+    for(int i=0;i<limit;i++){
+        total[i]=0;
+    }
     char buf[256];
 
     while(prefixNum != 0){ // if still prefix list remain
