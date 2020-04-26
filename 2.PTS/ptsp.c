@@ -50,8 +50,8 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
     int visited = 0;
     int used[N] = {0};
     int child_path[N] = { [0 ... N-1] = -1 };
-    int last = prefix[prefixLen-1];
-    int start = prefix[0];
+    int last = prefix[prefixNum][prefixLen-1];
+    int start = prefix[prefixNum][0];
     int tmp_dist = 0;
 
     int done(){
@@ -86,8 +86,8 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
     }
     //initialize array for find_path
     for(int i=0;i<prefixLen-1;i++){
-        used[prefix[i]]=1;
-        child_path[i]=prefix[i];
+        used[prefix[prefixNum][i]]=1;
+        child_path[i]=prefix[prefixNum][i];
     }
 
     find_path();
@@ -98,7 +98,7 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
 
     //send this path using shm
     for(int i=0;i<N;i++){
-        buffer->path[i] = child_path[i];
+        buffer->child_path[i] = child_path[i];
     }
 
     for(int i=0;i<N;i++){
@@ -113,11 +113,6 @@ void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr
     int exit_code;
     close(pipes[1]);
     Buffer* buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ | PROT_WRITE,MAP_SHARED,shm_id,0);
-
-    buffer->prefixLen = N-callimit;
-    for(int i=0;i<N-callimit;i++){
-        buffer->prefix[i] = prefix[prefixNum][i];
-    }
     
     //wait til child process is terminated
     wait(&exit_code);
@@ -125,11 +120,11 @@ void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr
     //get info from child
     char buf[32];
     read(pipes[0], buf, 31);
-    int ans = stof(buf);
+    int ans = atof(buf);
     if(ans < ANS){
         ANS = ans;
         for(int i=0;i<N;i++){
-            best_path[i] = buffer->path[i];
+            best_path[i] = buffer->child_path[i];
         }
     }
     close(pipes[0]);
@@ -147,12 +142,12 @@ int main(int argc, char argv[]){
     }
     char filename[32];
     char str[128];
-    int limit = stoi(argv[2]);
+    int limit = atoi(argv[2]);
     pid_t child_pid[limit];
     
 
     strcpy(filename,argv[1]);
-    signal(SIGINT, handler;
+    signal(SIGINT, handler);
 
     FILE * fp = fopen(filename, "r");
     if(fp == NULL){
@@ -245,18 +240,18 @@ void handler (int sig){
     if (sig == SIGINT) {
         //best solution upto the point
         printf("best solution :\n");
-
-
+        for(int i=0;i<N;i++){
+            printf("%d ",best_path[i]);
+        }
         //total number of checked/covered routes upto the point
-        printf("checked routes :\n");
-        for(int i=0;i<prefixCase;i++){
+        printf("\nchecked routes :\n");
+        for(int i=0;i<(*prefixCase);i++){
             for (int j=0;j<N;j++) {
                 if(path[i][j]!=-1);
                 printf("%d ",path[i][j]);
             }
         }
-        
-        printf("\nlength = %d\n",ANS);
+        printf("\nlength = %f\n",ANS);
         exit(0);
     }
 }
