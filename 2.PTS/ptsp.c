@@ -1,3 +1,7 @@
+/*
+TSP 알고리즘 참고 : https://shoark7.github.io/programming/algorithm/introduction-to-tsp-and-solve-with-exhasutive-search
+permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,11 +29,13 @@ int pipes[2]; //result 전달을 위한 파이프
 int dist[N][N]; //도시간의 거리 저장하는 매트릭스
 int ANS = INFINITY;
 int** prefix;
+int count = 0;
 
 void handler(int sig);
 void swap(int *a, int *b );
 void print_arr(int size, int* arr);
 void permutation(int n, int r, int depth,int* arr);
+int find_pid(int* total_pid, int limit);
 
 void child_proc(int shm_id){
     sleep(1); // wait for the parent to initialize the shared buffer
@@ -60,8 +66,8 @@ void child_proc(int shm_id){
 
     void find_path(){
         if (done()==1){ //모든 도시를 모두 거쳤을 경우
-            int return_home_dist = buffer->dist[last][start];
-            ans = (ans < tmp_dist + return_home_dist) ? ans : tmp_dist+return_home_dist
+            int return_home_dist = dist[last][start];
+            ans = (ans < tmp_dist + return_home_dist) ? ans : tmp_dist+return_home_dist;
             //최단거리를 ans에 저장
             //메인에 pipe로 ans, path리턴
         }
@@ -101,18 +107,12 @@ void child_proc(int shm_id){
     exit(0);
 }
 
-void parent_proc(int shm_id, int** path, char name[],int prefixNum){
+void parent_proc(int shm_id, int** path, char name[],int prefixNum, int* total_pid, int curr){
+    int exit_code;
     close(pipes[1]);
     Buffer* buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ | PROT_WRITE,MAP_SHARED,shm_id,0);
 
-    //send info to child proc
-    // buffer->N = N;
-    // for(int i=0;i<N;i++){
-    //     for(int j=0;j<N;j++){
-    //         buffer->dist[i][j] = dist[i][j];
-    //     }
-    // }
-    buffer->prefixLen = prefixLen;
+    buffer->prefixLen = N-callimit;
     for(int i=0;i<N-callimit;i++){
         buffer->prefix[i] = prefix[prefixNum][i];
     }
@@ -122,7 +122,7 @@ void parent_proc(int shm_id, int** path, char name[],int prefixNum){
 
     //get info from child
     char buf[32];
-    read(pipes[0], buf, 31)
+    read(pipes[0], buf, 31);
     int ans = atoi(buf);
     if(ans < ANS) ANS = ans;
     close(pipes[0]);
@@ -131,6 +131,9 @@ void parent_proc(int shm_id, int** path, char name[],int prefixNum){
         path[prefixNum][i] = buffer->path[i];
     }  
     shm_unlink(name);
+
+    total_pid[curr] = 0;
+
 }
 
 int main(int argc, char argv[]){
@@ -142,7 +145,7 @@ int main(int argc, char argv[]){
     char str[128];
     int limit = atoi(argv[2]);
     pid_t child_pid[limit];
-    int exit_code;
+    
 
     strcpy(filename,argv[1]);
     signal(SIGINT, handler);
@@ -155,8 +158,8 @@ int main(int argc, char argv[]){
 
     //Initialize
     int t;
-    for (i = 0 ; i < N ; i++){
-        for (j = 0 ; j < N ; j++){
+    for (int i = 0 ; i < N ; i++){
+        for (int j = 0 ; j < N ; j++){
             fscanf(fp, "%d", &t) ;
             dist[i][j] = t ;
         }
@@ -165,7 +168,6 @@ int main(int argc, char argv[]){
 
     int prefixLen = N - callimit;
     int prefixCase = 1;
-    int n = N, r = prefixNum;
 
     //calculate nPr to get to know number of all kind of prefix.
     for(int i=0;i<r;i++){ 
@@ -190,6 +192,10 @@ int main(int argc, char argv[]){
         arr[i]=i;
     }
 	permutation(N, prefixLen, 0, arr);
+    if(count != prefixCase){
+        printf("Failed to make prefix properly\n");
+        exit(-1);
+    }
 
     while(prefixNum != 0){ // if still prefix list remain
         if(running_pid < limit){ //if there is remaining child_pid
@@ -202,7 +208,7 @@ int main(int argc, char argv[]){
 
             //make a shared memory
             char name[32];
-            sprintf(name,"/buffer[%d]",curr_pid)
+            sprintf(name,"/buffer[%d]",curr_pid);
             int shm_id = shm_open(name, O_CREAT | O_RDWR, 0666);
             ftruncate(shm_id,sizeof(Buffer));
             
@@ -214,17 +220,9 @@ int main(int argc, char argv[]){
                 printf("Failed to create child process\n");
                 exit(-1);
             } else if(child_pid > 0){
-                parent_proc(shm_id, path, name, prefixNum);
+                parent_proc(shm_id, path, name, prefixNum, total_pid, curr_pid);
             } else {
                 child_proc(shm_id);
-            }
-        }
-        
-        for(int i=0 ; i<limit ; i++){
-            child_pid[curr_pid] = fork();
-            curr_pid++;
-            if(child_pid[curr_pid] == 0){
-                child_proc();
             }
         }
     }
@@ -234,7 +232,7 @@ int main(int argc, char argv[]){
 void handler (int sig){
     if (sig == SIGINT) {
         //best solution upto the point
-        printf("best solution :"\n)
+        printf("best solution :\n");
         for (i=0;i<N;i++) {
             printf("%d ",path[i]);
         }
