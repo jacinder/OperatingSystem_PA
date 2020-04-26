@@ -177,12 +177,12 @@ int main(int argc, char argv[]){
     int prefixNum = _prefixCase;
     prefixCase = (int*)malloc(sizeof(int));
     *prefixCase = _prefixCase;
-    prefix = (int**)malloc(sizeof(int*)*prefixCase);
-    for(int i=0;i<prefixCase;i++){
+    prefix = (int**)malloc(sizeof(int*)*_prefixCase);
+    for(int i=0;i<_prefixCase;i++){
         prefix[i]=(int*)malloc(sizeof(int)*prefixLen);
     }
-    path=(int**)malloc(sizeof(int*)*prefixCase);
-    for(int i=0;i<prefixCase;i++){
+    path=(int**)malloc(sizeof(int*)*_prefixCase);
+    for(int i=0;i<_prefixCase;i++){
         path[i]=(int*)malloc(sizeof(int)*N);
     }
     best_path = (int*)malloc(sizeof(int)*N);
@@ -199,7 +199,7 @@ int main(int argc, char argv[]){
         arr[i]=i;
     }
 	permutation(N, prefixLen, 0, arr);
-    if(count != *prefixCase){
+    if(count != _prefixCase){
         printf("Failed to make prefix properly\n");
         exit(-1);
     }
