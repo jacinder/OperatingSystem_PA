@@ -60,7 +60,7 @@ int main(int argc, char* argv[]){
     int running_pid = 0;
     int total_pid[limit];
     for(int i=0;i<limit;i++){
-        total[i]=0;
+        total_pid[i]=0;
     }
     char buf[256];
 
