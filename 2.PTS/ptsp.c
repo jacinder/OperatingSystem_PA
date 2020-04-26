@@ -71,21 +71,20 @@ int main(int argc, char* argv[]){
             }
             curr_pid = find_pid(total_pid, limit);
             if(curr_pid == -1) continue;
- /*DEBUGGING*/
- /*
+
             //make a shared memory
             char name[32];
             sprintf(name,"/buffer[%d]",curr_pid);
             int shm_id = shm_open(name, O_CREAT | O_RDWR, 0666);
             ftruncate(shm_id,sizeof(Buffer));
-*/          
+    
             child_pid[curr_pid] = fork();
              /*DEBUGGING*/
             printf("%d pid fork\n",curr_pid);
             total_pid[curr_pid] = 1;
              /*DEBUGGING*/
             for(int i=0;i<limit;i++){
-                printf("total_pid[%d]: %d\n",i,total_pid[i]);
+                printf("main:total_pid[%d]: %d\n",i,total_pid[i]);
             }
 
             prefixNum --;
@@ -125,6 +124,7 @@ void terminate_handler (int sig){
         printf("\nlength = %f\n",ANS);
         exit(0);
     }
+    exit(0);
 }
 
 void permutation(int n, int r, int depth,int* arr){
@@ -150,7 +150,7 @@ void permutation(int n, int r, int depth,int* arr){
 int find_pid(int* total_pid, int limit){
      /*DEBUGGING*/
     for(int i=0;i<limit;i++){
-        printf("total_pid[%d]: %d\n",i,total_pid[i]);
+        printf("find_pid:total_pid[%d]: %d\n",i,total_pid[i]);
     }
     for(int i=0;i<limit;i++){
         if(total_pid[i]==0) return i;
