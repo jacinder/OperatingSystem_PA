@@ -39,6 +39,7 @@ void openfile(char filename[]);
 void makePrefix();
 void child_proc(int shm_id,int prefixNum, int prefixLen);
 void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr);
+void find_path(int start, int last, int child_path[], int tmp_dist, int used[], int visited, float ans);
 
 int main(int argc, char* argv[]){
     if(argc != 3){
@@ -54,10 +55,10 @@ int main(int argc, char* argv[]){
     makePrefix();
 
     int prefixLen = N - cal_limit;
+    int prefixNum = prefixCase;
     int curr_pid = 0;
     int running_pid = 0;
-    int total_pid[limit];
-    for(int i=0;i<limit;i++) total_pid=0;
+    int total_pid[limit]={0};
     char buf[256];
 
     while(prefixNum != 0){ // if still prefix list remain
@@ -220,7 +221,7 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
         child_path[i]=prefix[prefixNum][i];
     }
 
-    find_path(start, last, child_path, tmp_dist, used, visited);
+    find_path(start, last, child_path, tmp_dist, used, visited, ans);
 
     //send ans using pipe to parent
     char buf[32];
@@ -266,7 +267,7 @@ void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr
 
 }
 
-void find_path(int start, int last, int child_path[], int tmp_dist, int used[], int visited){
+void find_path(int start, int last, int child_path[], int tmp_dist, int used[], int visited, float ans){
     int FLAG = 1;
     for(int i=0;i<N;i++){
         if(used[i] != 0) FLAG = 0;
@@ -281,7 +282,7 @@ void find_path(int start, int last, int child_path[], int tmp_dist, int used[], 
                 used[left]=1;
                 child_path[visited]=left;
                 visited++;
-                find_path(start,left,child_path,tmp_dist+dist[last][left], used[], visited);
+                find_path(start,left,child_path,tmp_dist+dist[last][left], used, visited, ans);
             }
         }
     }
