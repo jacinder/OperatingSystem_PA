@@ -176,7 +176,7 @@ int main(int argc, char argv[]){
     }
     int prefixNum = _prefixCase;
     prefixCase = (int*)malloc(sizeof(int));
-    prefixCase = _prefixCase;
+    *prefixCase = _prefixCase;
     prefix = (int**)malloc(sizeof(int*)*prefixCase);
     for(int i=0;i<prefixCase;i++){
         prefix[i]=(int*)malloc(sizeof(int)*prefixLen);
@@ -199,7 +199,7 @@ int main(int argc, char argv[]){
         arr[i]=i;
     }
 	permutation(N, prefixLen, 0, arr);
-    if(count != prefixCase){
+    if(count != *prefixCase){
         printf("Failed to make prefix properly\n");
         exit(-1);
     }
@@ -229,7 +229,7 @@ int main(int argc, char argv[]){
             } else if(child_pid > 0){
                 parent_proc(shm_id, name, prefixNum, total_pid, curr_pid);
             } else {
-                child_proc(shm_id);
+                child_proc(shm_id, prefixNum, prefixLen);
             }
         }
     }
