@@ -6,7 +6,7 @@ permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <error.h>
+//#include <error.h>
 #include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -27,19 +27,19 @@ float ANS = INFINITY;
 int** prefix;
 int** path;
 int* best_path;
-int prefixCase = 0;
+int prefixCase = 1;
+int temp_count = 0;
 int parent_pid;
 
 int find_pid(int* total_pid, int limit);
 void terminate_handler(int sig);
-void swap(int *a, int *b );
-void print_arr(int size, int* arr);
-void permutation(int n, int r, int depth,int* arr);
+void permutation(int n, int r, int depth, int* arr);
 void openfile(char filename[]);
 void makePrefix();
 void child_proc(int shm_id,int prefixNum, int prefixLen);
 void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr);
 void find_path(int start, int last, int child_path[], int tmp_dist, int used[], int visited, float ans);
+
 
 int main(int argc, char* argv[]){
     if(argc != 3){
@@ -62,7 +62,6 @@ int main(int argc, char* argv[]){
     for(int i=0;i<limit;i++){
         total_pid[i]=0;
     }
-    char buf[256];
 
     while(prefixNum != 0){ // if still prefix list remain
         if(running_pid < limit){ //if there is remaining child_pid
@@ -72,16 +71,25 @@ int main(int argc, char* argv[]){
             }
             curr_pid = find_pid(total_pid, limit);
             if(curr_pid == -1) continue;
-
+ /*DEBUGGING*/
+ /*
             //make a shared memory
             char name[32];
             sprintf(name,"/buffer[%d]",curr_pid);
             int shm_id = shm_open(name, O_CREAT | O_RDWR, 0666);
             ftruncate(shm_id,sizeof(Buffer));
-            
+*/          
             child_pid[curr_pid] = fork();
+             /*DEBUGGING*/
+            printf("%d pid fork\n",curr_pid);
             total_pid[curr_pid] = 1;
+             /*DEBUGGING*/
+            for(int i=0;i<limit;i++){
+                printf("total_pid[%d]: %d\n",i,total_pid[i]);
+            }
+
             prefixNum --;
+            running_pid++;
 
             if(child_pid < 0){
                 printf("Failed to create child process\n");
@@ -90,9 +98,12 @@ int main(int argc, char* argv[]){
                 parent_proc(shm_id, name, prefixNum, total_pid, curr_pid);
             } else {
                 child_proc(shm_id, prefixNum, prefixLen);
+                 /*DEBUGGING*/
+                printf("prefixNum : %d\n",prefixNum);
             }
         }
     }
+    sleep(5);
     exit(0);
 }
 
@@ -107,8 +118,8 @@ void terminate_handler (int sig){
         printf("\nchecked routes :\n");
         for(int i=0;i<prefixCase;i++){
             for (int j=0;j<N;j++) {
-                if(path[i][j]!=-1);
-                printf("%d ",path[i][j]);
+                if(path[i][j]!=-1)
+                    printf("%d ",path[i][j]);
             }
         }
         printf("\nlength = %f\n",ANS);
@@ -116,38 +127,31 @@ void terminate_handler (int sig){
     }
 }
 
-void sigchld_handler(){
-    
-}
-
-void swap(int *a, int *b ){
-	int tmp;
-	tmp = *a;
-	*a = *b;
-	*b = tmp;
-}
-
-void print_arr(int size, int* arr){
-	for(int i=0; i < size; i++)
-		prefix[prefixCase][i]=arr[i];
-    prefixCase++;
-}
-
 void permutation(int n, int r, int depth,int* arr){
-
+    int tmp;
 	if(r == depth){
-		print_arr(depth, arr);
+		for(int i=0; i < depth; i++)
+		    prefix[temp_count][i]=arr[i];
+        temp_count++;
 		return;
 	}
 	for(int i=depth; i<n; i++){
-		swap(&arr[i], &arr[depth]);
+        tmp = arr[i];
+        arr[i] = arr[depth];
+        arr[depth] = tmp;
 		permutation(n, r, depth+1, arr);
-		swap(&arr[i], &arr[depth]);
+		tmp = arr[i];
+        arr[i] = arr[depth];
+        arr[depth] = tmp;
 	}
 
 }
 
 int find_pid(int* total_pid, int limit){
+     /*DEBUGGING*/
+    for(int i=0;i<limit;i++){
+        printf("total_pid[%d]: %d\n",i,total_pid[i]);
+    }
     for(int i=0;i<limit;i++){
         if(total_pid[i]==0) return i;
     }
@@ -172,6 +176,11 @@ void openfile(char filename[]){
 }
 
 void makePrefix(){
+
+    //prefixCase구해놓기
+    for(int i=N ; i>cal_limit ; i--){
+        prefixCase *= i;
+    }
     int prefixLen = N - cal_limit;
     int prefixNum = prefixCase;
 
@@ -196,10 +205,11 @@ void makePrefix(){
 }
 
 void child_proc(int shm_id,int prefixNum, int prefixLen){
+    /*
     sleep(1); // wait for the parent to initialize the shared buffer
     close(pipes[0]);
-    Buffer *buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ,MAP_SHARED,shm_id,0);
-
+    Buffer *buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ|PROT_WRITE,MAP_SHARED,shm_id,0);
+    */
     //handle prefix
     int child_prefix[prefixLen];
     for(int i=0;i<prefixLen;i++){
@@ -219,11 +229,20 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
         tmp_dist += dist[i][i+1];
     }
     //initialize array for find_path
-    for(int i=0;i<prefixLen-1;i++){
+    for(int i=0;i<prefixLen;i++){
         used[prefix[prefixNum][i]]=1;
         child_path[i]=prefix[prefixNum][i];
     }
-
+    /*DEBUGGING*/
+    printf("prefixNum : %d\n",prefixNum);
+    for(int i=0;i<N;i++){
+        printf("used[%d]: %d \n",i,used[i]);
+    }
+    for(int i=0;i<prefixLen;i++){
+        printf("child_path[%d]: %d\n",i,child_path[i]);
+    }
+     /*DEBUGGING*/
+    /*
     find_path(start, last, child_path, tmp_dist, used, visited, ans);
 
     //send ans using pipe to parent
@@ -241,17 +260,19 @@ void child_proc(int shm_id,int prefixNum, int prefixLen){
     }
 
     munmap(buffer,sizeof(Buffer));
+    */
     exit(0);
 }
 
 void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr){
     int exit_code;
     close(pipes[1]);
-    Buffer* buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ | PROT_WRITE,MAP_SHARED,shm_id,0);
+    Buffer* buffer = (Buffer*)mmap(0,sizeof(Buffer),PROT_READ,MAP_SHARED,shm_id,0);
     
     //wait til child process is terminated
     wait(&exit_code);
-
+     /*DEBUGGING*/
+/* 
     //get info from child
     char buf[32];
     read(pipes[0], buf, 31);
@@ -265,7 +286,7 @@ void parent_proc(int shm_id, char name[],int prefixNum, int* total_pid, int curr
     close(pipes[0]);
 
     shm_unlink(name);
-
+*/
     total_pid[curr] = 0;
 
 }
