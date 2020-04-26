@@ -30,11 +30,11 @@ int* best_path;
 int prefixCase = 0;
 int parent_pid;
 
+int find_pid(int* total_pid, int limit);
 void terminate_handler(int sig);
 void swap(int *a, int *b );
 void print_arr(int size, int* arr);
 void permutation(int n, int r, int depth,int* arr);
-int find_pid(int* total_pid, int limit);
 void openfile(char filename[]);
 void makePrefix();
 void child_proc(int shm_id,int prefixNum, int prefixLen);
