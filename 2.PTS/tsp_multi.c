@@ -222,17 +222,14 @@ void sigchld_handler(int sig){
     char message[256];
 
     pid_t child = wait(&exitcode) ;
-    printf("\n> child process %d is terminated with exitcode %d\n", child, WEXITSTATUS(exitcode));
     for(int j=0;j<prefixCase;j++){
         if(process_pipe_table[j]==child){
-            //printf("child[%d] is terminated\n",j);
             this_pipe_count = j;
             break;
         }
     }
     close(pipes[this_pipe_count][1]);//read mode
     read(pipes[this_pipe_count][0], message, 256);
-    // printf("parent message : %s\n\n",message);
 
     char *ptr = strtok(message, " ");
     sscanf(ptr,"%d",&this_process_count);
@@ -255,7 +252,6 @@ void sigchld_handler(int sig){
 
     close(pipes[this_pipe_count][0]);
     running_proc--;
-    //exit(0);
 }
 
 int main(int argc, char* argv[]){
