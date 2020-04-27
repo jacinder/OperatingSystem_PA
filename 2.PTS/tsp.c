@@ -10,13 +10,12 @@ permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
 #include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
-// #include <limits.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #define N 5
-#define cal_limit 3
+#define cal_limit 2
 
 int pipes[2]; //result 전달을 위한 파이프
 int dist[N][N]; //도시간의 거리 저장하는 매트릭스
@@ -29,31 +28,36 @@ int prefixCase = 1;
 int temp_count = 0;
 int running_limit = 0;
 int running_proc = 0;
-int process_count = 0;
+int process_count = -1;
 int parent_pid;
+
+void final_print(){
+    //best solution upto the point
+    printf("\n\n-------------[FINAL]-------------\n");
+    printf("best solution :\n");
+    for(int i=0;i<N;i++){
+        printf("%d ",best_path[i]);
+    }
+    //total number of checked/covered routes upto the point
+    printf("\nchecked routes :\n");
+    for(int i=0;i<prefixCase;i++){
+        for (int j=0;j<N;j++) {
+            if(path[i][j]!=-1)
+                printf("%d ",path[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\nlength = %d\n",ans);
+}
 
 void terminate_handler (int sig){
     if ((sig == SIGINT) && (getpid() == parent_pid)) { //parent
-        //best solution upto the point
-        printf("best solution :\n");
-        for(int i=0;i<N;i++){
-            printf("%d ",best_path[i]);
-        }
-        //total number of checked/covered routes upto the point
-        printf("\nchecked routes :\n");
-        for(int i=0;i<prefixCase;i++){
-            for (int j=0;j<N;j++) {
-                if(path[i][j]!=-1)
-                    printf("%d ",path[i][j]);
-            }
-        }
-        printf("\nlength = %d\n",ans);
+        final_print();
         exit(0);
     }
     else{//child
         exit(0);
     }
-    
 }
 
 void openFile(char filename[]){
@@ -152,6 +156,7 @@ void find_path(int start, int last, int tmp_dist, int curr, int* length, int use
 
 void child_proc(){
     close(pipes[0]);//write mode
+    int this_process_count = process_count;
     int start = prefix[process_count][0];
     int last = prefix[process_count][prefixLen-1];
     int curr = prefixLen;
@@ -180,10 +185,15 @@ void child_proc(){
     }
 
     char message[256];
-    printf("length: %d\n",length);
-    sprintf(message,"%d",length);
-    // for(int i = 1; i <= N; ++i)
-    //     sprintf(message,"%d ", best_child_path[i]);
+    char buffer[32];
+    /*DEBUGGING*/
+    //printf("length: %d\n",length);
+    //
+    sprintf(message,"%d %d ",this_process_count,length);
+    for(int i = 0; i < N; ++i){
+        sprintf(buffer,"%d ",best_child_path[i]);
+        strcat(message,buffer);
+    }
     write(pipes[1], message, 256);
 
     for(int i=0;i<N;i++){
@@ -197,18 +207,41 @@ void child_proc(){
 
 void parent_proc(){
     int exitcode;
+    int this_process_count;
     int length;
+    int i = 0;
     char message[256];
 
     pid_t child = wait(&exitcode) ;
+    printf("> child process %d is terminated with exitcode %d\n", child, WEXITSTATUS(exitcode));
 
     close(pipes[1]);//read mode
     read(pipes[0], message, 256);
-    sscanf(message,"%d",&length);
+    //message에서 length, path를 읽어오기
+    char *ptr = strtok(message, " ");
+    sscanf(ptr,"%d",&this_process_count);          // 자른 문자열 출력
+    ptr = strtok(NULL, " ");
+    sscanf(ptr,"%d",&length);          // 자른 문자열 출력
+    ptr = strtok(NULL, " ");
+
+    while (ptr != NULL && i<N){
+        sscanf(ptr,"%d",&path[this_process_count][i]);
+        ptr = strtok(NULL, " ");
+        i++;
+    }
+
     if(length < ans){
         ans = length;
+        for(int i=0;i<N;i++){
+            best_path[i] = path[this_process_count][i];
+        }
     }
-    printf("ans : %d\n",ans);
+
+    // printf("\nans : %d\nbest path : \n",ans);
+    // for(int i=0;i<N;i++){
+    //     printf("%d ",best_path[i]);
+    // }
+    // printf("\n");
     close(pipes[0]);
     running_proc--;
 }
@@ -216,13 +249,12 @@ void parent_proc(){
 int main(int argc, char* argv[]){
     running_limit = atoi(argv[2]);
     openFile(argv[1]);
-    // signal(SIGCHLD, sigchld_handler);
     signal(SIGINT, terminate_handler);
 
     //prefix 만들기
     makePrefix();
     
-    while(process_count < prefixCase){
+    for(int q=0;q<prefixCase;q++){
         pid_t child_pid;
         if(pipe(pipes) != 0){
             perror("Error") ;
@@ -242,6 +274,7 @@ int main(int argc, char* argv[]){
                 exit(1);
             }
             else if(child_pid > 0){
+                printf("Child %d is forked\n", child_pid);
                 parent_proc();
             }
             if (child_pid == 0) {
@@ -249,6 +282,6 @@ int main(int argc, char* argv[]){
             }
         }
     }
-    
+    final_print();
     exit(0);
 }
