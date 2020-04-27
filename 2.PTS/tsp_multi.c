@@ -14,8 +14,8 @@ permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define N 5
-#define cal_limit 3
+#define N 17
+#define cal_limit 12
 
 int** pipes; //for transfer result
 int dist[N][N]; //distances between cities
@@ -43,7 +43,7 @@ void final_print(){
     printf("\nchecked routes :\n");
     for(int i=0;i<process_count;i++){
         for (int j=0;j<N;j++) {
-            //if(path[i][j]!=-1)
+            if(path[i][j]!=-1)
                 printf("%d ",path[i][j]);
         }
         printf("\n");
@@ -53,7 +53,6 @@ void final_print(){
 
 void terminate_handler (int sig){
     if ((sig == SIGINT) && (getpid() == parent_pid)) { //parent
-        //sleep(2);
         final_print();
         exit(0);
     }
@@ -203,7 +202,6 @@ void child_proc(int this_process_count){
         sprintf(buffer,"%d ",best_child_path[i]);
         strcat(message,buffer);
     }
-    // printf("child message : %s\n",message);
     write(pipes[this_process_count][1], message, 256);
 
     for(int i=0;i<N;i++){
@@ -212,6 +210,7 @@ void child_proc(int this_process_count){
     tmp_dist = 0;
     length = 2000000000;
     close(pipes[this_process_count][1]);
+    printf("child[%d] exit\n",this_process_count);
     exit(0);
 }
 void sigchld_handler(int sig){
@@ -262,7 +261,7 @@ void sigchld_handler(int sig){
 int main(int argc, char* argv[]){
     running_limit = atoi(argv[2]);
     openFile(argv[1]);
-
+    parent_pid=getpid();
     signal(SIGCHLD, sigchld_handler);
     signal(SIGINT, terminate_handler);
 
@@ -281,7 +280,6 @@ int main(int argc, char* argv[]){
             running_proc++;
             process_count++;
             child_pid = fork();
-            printf("child[%d] fork\n",process_count-1);
             if (child_pid < 0){
                 printf("Failed to make child process\n");
                 exit(1);
@@ -290,6 +288,7 @@ int main(int argc, char* argv[]){
                 process_pipe_table[process_count-1]=child_pid;
             }
             else{
+                printf("child[%d] fork\n",process_count-1);
                 child_proc(process_count-1);
             }
         }
