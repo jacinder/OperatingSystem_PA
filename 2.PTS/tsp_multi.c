@@ -15,20 +15,21 @@ permutation 참고 : https://twpower.github.io/62-permutation-by-recursion
 #include <sys/wait.h>
 
 #define N 5
-#define cal_limit 2
+#define cal_limit 3
 
-int pipes[2]; //for transfer result
+int** pipes; //for transfer result
 int dist[N][N]; //distances between cities
 int best_path[N];
 int ans = 2000000000;
 int** prefix;
 int** path;
+int* process_pipe_table;
 int prefixLen = N - cal_limit;
 int prefixCase = 1;
 int temp_count = 0;
 int running_limit = 0;
 int running_proc = 0;
-int process_count = -1;
+int process_count = 0;
 int parent_pid;
 
 void final_print(){
@@ -40,9 +41,9 @@ void final_print(){
     }
     //total number of checked/covered routes upto the point
     printf("\nchecked routes :\n");
-    for(int i=0;i<prefixCase;i++){
+    for(int i=0;i<process_count;i++){
         for (int j=0;j<N;j++) {
-            if(path[i][j]!=-1)
+            //if(path[i][j]!=-1)
                 printf("%d ",path[i][j]);
         }
         printf("\n");
@@ -52,6 +53,7 @@ void final_print(){
 
 void terminate_handler (int sig){
     if ((sig == SIGINT) && (getpid() == parent_pid)) { //parent
+        //sleep(2);
         final_print();
         exit(0);
     }
@@ -111,8 +113,18 @@ void makePrefix(){
     for(int i=0;i<prefixCase;i++){
         path[i]=(int*)malloc(sizeof(int)*N);
         for(int j=0;j<N;j++){
-            path[i][j]=-1;
+            path[i][j]=-1; //initialize path with -1
         }
+    }
+
+    pipes = (int**)malloc(sizeof(int*)* prefixCase);
+    for(int i=0;i<prefixCase;i++){
+        pipes[i]=(int*)malloc(sizeof(int)*2);
+    }
+
+    process_pipe_table = (int*)malloc(sizeof(int*)* prefixCase);
+    for(int i=0;i<prefixCase;i++){
+        process_pipe_table[i] = -1; //initialize process_pipe_table with -1
     }
 
     int arr[N];
@@ -154,11 +166,11 @@ void find_path(int start, int last, int tmp_dist, int curr, int* length, int use
     
 }
 
-void child_proc(){
-    close(pipes[0]);
-    int this_process_count = process_count;
-    int start = prefix[process_count][0];
-    int last = prefix[process_count][prefixLen-1];
+void child_proc(int this_process_count){
+    close(pipes[this_process_count][0]);
+    
+    int start = prefix[this_process_count][0];
+    int last = prefix[this_process_count][prefixLen-1];
     int curr = prefixLen;
     int used[N];
     int child_path[N];
@@ -167,7 +179,7 @@ void child_proc(){
         used[i]=child_path[i]=0;
     }
     for(int i=0;i<prefixLen;i++){
-        child_path[i]=prefix[process_count][i];
+        child_path[i]=prefix[this_process_count][i];
         used[child_path[i]]=1;
     }
 
@@ -191,30 +203,37 @@ void child_proc(){
         sprintf(buffer,"%d ",best_child_path[i]);
         strcat(message,buffer);
     }
-    printf("child message : %s\n",message);
-    write(pipes[1], message, 256);
+    // printf("child message : %s\n",message);
+    write(pipes[this_process_count][1], message, 256);
 
     for(int i=0;i<N;i++){
         used[i]=child_path[i]=0;
     }
     tmp_dist = 0;
     length = 2000000000;
-    close(pipes[1]);
+    close(pipes[this_process_count][1]);
     exit(0);
 }
 void sigchld_handler(int sig){
     int exitcode;
-    int this_process_count;
+    int this_process_count = -1;
+    int this_pipe_count;
     int length;
     int i = 0;
     char message[256];
 
     pid_t child = wait(&exitcode) ;
-    printf("> child process %d is terminated with exitcode %d\n", child, WEXITSTATUS(exitcode));
-
-    close(pipes[1]);//read mode
-    read(pipes[0], message, 256);
-    printf("parent message : %s\n",message);
+    printf("\n> child process %d is terminated with exitcode %d\n", child, WEXITSTATUS(exitcode));
+    for(int j=0;j<prefixCase;j++){
+        if(process_pipe_table[j]==child){
+            //printf("child[%d] is terminated\n",j);
+            this_pipe_count = j;
+            break;
+        }
+    }
+    close(pipes[this_pipe_count][1]);//read mode
+    read(pipes[this_pipe_count][0], message, 256);
+    // printf("parent message : %s\n\n",message);
 
     char *ptr = strtok(message, " ");
     sscanf(ptr,"%d",&this_process_count);
@@ -235,8 +254,9 @@ void sigchld_handler(int sig){
         }
     }
 
-    close(pipes[0]);
+    close(pipes[this_pipe_count][0]);
     running_proc--;
+    //exit(0);
 }
 
 int main(int argc, char* argv[]){
@@ -248,35 +268,33 @@ int main(int argc, char* argv[]){
 
     makePrefix();
     
-    for(int q=0;q<prefixCase;q++){
+    while(process_count<prefixCase){
         pid_t child_pid;
-        if(pipe(pipes) != 0){
+        if(pipe(pipes[process_count]) != 0){
             perror("Error") ;
             exit(1) ;
         }
         if(running_proc == running_limit){
             wait(0);
         }
-
         if(running_proc < running_limit){
             running_proc++;
-            printf("running proc : %d\n",running_proc);
             process_count++;
             child_pid = fork();
-        
+            printf("child[%d] fork\n",process_count-1);
             if (child_pid < 0){
                 printf("Failed to make child process\n");
                 exit(1);
             }
             else if(child_pid > 0){
-                printf("Child %d is forked\n", child_pid);
-                //parent_proc();
+                process_pipe_table[process_count-1]=child_pid;
             }
-            if (child_pid == 0) {
-                child_proc();
+            else{
+                child_proc(process_count-1);
             }
         }
     }
+    sleep(10);
     final_print();
     exit(0);
 }
